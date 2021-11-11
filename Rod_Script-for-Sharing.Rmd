@@ -1,0 +1,331 @@
+---
+title: "Rod Preprocessing + Models"
+author: "Rod Rosales"
+date: "11/10/2021"
+output: html_document
+---
+
+#Libraries
+```{r}
+library(cluster)
+library(caret)
+library(rpart)
+library(rattle)
+library(factoextra)
+library(dendextend)
+library(tm)
+library(gridExtra)
+library(stringr)
+library(tidyr)
+library(rpart.plot)
+library(C50)
+library(textclean)
+library("naniar")
+library(plyr)
+library(dplyr)
+library(arules)
+library(arulesViz)
+library(caTools)
+library(stats)
+library(ggfortify)
+```
+
+#### Pre-Processing ####
+
+#1) Loading Music Genre Data
+```{r}
+Music_Gen <- read.csv("C:/Users/rod_r/OneDrive/Desktop/Syracuse Classes/Fall 2021/IST 707 Data Analytics/Project/music_genre.csv", encoding='UTF-8')
+```
+
+#2) Rename Columns
+```{r}
+colnames(Music_Gen) <- c("ID", "Artist", "Song", "Popularity", "Acoustics", "Danceability", "Duration_ms","Energy", "Instrumentalness", "Key", "Liveness", "Loudness", "Mode", "Lyrics", "Tempo","Obtained_Date", "Valence", "Genre")
+```
+
+#3) Remove Entries with values we can't work with
+```{r Music_Gen, echo=TRUE, eval=TRUE}
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == -1, NA))
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == 0, NA))
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.factor, ~replace(., . == "empty_field", NA))
+```
+
+#4) Recharacterize Character Variables for statistics
+```{r}
+Music_Gen$ID <- as.factor(Music_Gen$ID)
+Music_Gen$Artist <- as.factor(Music_Gen$Artist)
+Music_Gen$Song <- as.factor(Music_Gen$Song)
+Music_Gen$Key <- as.factor(Music_Gen$Key)
+Music_Gen$Mode <- as.factor(Music_Gen$Mode)
+Music_Gen$Genre <- as.factor(Music_Gen$Genre)
+Music_Gen$Tempo <- as.numeric(Music_Gen$Tempo)
+```
+
+#5) Remove Entries with NA Values
+```{r}
+Music_Gen <- na.omit(Music_Gen)
+```
+
+#6) Index the ID numbers
+```{r}
+rownames(Music_Gen)<-Music_Gen$ID
+```
+
+#7) Get Rid of Id, Artist, and non numerical values
+```{r}
+New_Music_Gen <- Music_Gen[,-1:-3]
+New_Music_Gen$Key <- NULL
+New_Music_Gen$Mode <- NULL
+New_Music_Gen$Genre <- NULL
+Music_Gen$Obtained_Date <- NULL
+```
+
+#### Pre-Processing END ####
+
+
+
+#############################Aproproi Algorithm#############################
+
+#1) Loading Music Genre Data
+```{r}
+Music_Gen <- read.csv("C:/Users/rod_r/OneDrive/Desktop/Syracuse Classes/Fall 2021/IST 707 Data Analytics/Project/music_genre.csv", encoding='UTF-8')
+```
+
+```{r}
+View(Music_Gen)
+str(Music_Gen)
+```
+
+#2) Rename Columns
+```{r}
+colnames(Music_Gen) <- c("ID", "Artist", "Song", "Popularity", "Acoustics", "Danceability", "Duration_ms","Energy", "Instrumentalness", "Key", "Liveness", "Loudness", "Mode", "Lyrics", "Tempo","Obtained_Date", "Valence", "Genre")
+```
+
+#3) Remove Entries with values we can't work with
+```{r}
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == -1, NA))
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == 0, NA))
+Music_Gen <-
+  Music_Gen %>%
+  mutate_if(is.factor, ~replace(., . == "empty_field", NA))
+Music_Gen$Tempo <- as.numeric(Music_Gen$Tempo)
+```
+
+#4) Remove Entries with NA Values
+```{r}
+Music_Gen <- na.omit(Music_Gen)
+```
+
+#5) Index the ID numbers
+```{r}
+rownames(Music_Gen)<-Music_Gen$ID
+```
+
+#6) Get Rid of ID, Artist, and non numerical values
+```{r}
+New_Music_Gen <- Music_Gen[,-1:-3]
+New_Music_Gen$Mode <- NULL
+New_Music_Gen$Acoustics <- NULL
+New_Music_Gen$Duration_ms <- NULL
+New_Music_Gen$Loudness <- NULL
+New_Music_Gen$Lyrics <- NULL
+New_Music_Gen$Liveness <- NULL
+New_Music_Gen$Obtained_Date <- NULL
+```
+
+```{r}
+View(Music_Gen)
+str(Music_Gen)
+```
+
+#7) Range of Danceability
+```{r}
+range(Music_Gen$Danceability)
+```
+
+#8) Range of Popularity
+```{r}
+range(Music_Gen$Popularity)
+```
+
+#9) Range of Energy
+```{r}
+range(Music_Gen$Energy)
+```
+
+#10) Range of Tempo
+```{r}
+range(Music_Gen$Tempo)
+```
+
+#11) Range of Instrumentalness
+```{r}
+range(Music_Gen$Instrumentalness)
+```
+
+#13) Range of Valence
+```{r}
+range(Music_Gen$Valence)
+```
+
+
+
+
+#14) Discretize Variables
+```{r}
+New_Music_Gen$Danceability <- cut(New_Music_Gen$Danceability, breaks = c(.01,.25,.50,.75,Inf),labels=c("Not Danceable","Head-Bobber"," Danceable","Highly Danceable"))
+New_Music_Gen$Popularity <- cut(New_Music_Gen$Popularity, breaks = c(1,30,50,70,90,Inf),labels=c("Niche","Not Popular","Somwhat Popular","Popular","Mainstream"))
+New_Music_Gen$Energy <- cut(New_Music_Gen$Energy, breaks = c(.0005,.30,.60,.90,Inf),labels=c("Low","Moderate", "Upbeat", "Energetic"))
+New_Music_Gen$Tempo <- cut(New_Music_Gen$Tempo, breaks = c(30,50,70,90,150,Inf),labels=c("Grave","Adagietto", "Moderato", "Allegro", "Prestissimo"))
+New_Music_Gen$Instrumentalness <- cut(New_Music_Gen$Instrumentalness, breaks = c(.0,.10,.30,.60,.90,Inf),labels=c("Acapella","Low Instruments", "Moderate", "Instruments", "Full Instrumental"))
+New_Music_Gen$Valence <- cut(New_Music_Gen$Valence, breaks = c(.01,.30,.50,.70,.90,Inf),labels=c("Depressing","Angry","Moderate","cheerful","Euphoric"))
+```
+
+```{r}
+View(New_Music_Gen)
+str(New_Music_Gen)
+```
+
+#15)Recode:
+```{r}
+New_Music_Gen$Popularity=dplyr::recode(New_Music_Gen$Popularity, YES="married=YES", NO="married=NO")
+New_Music_Gen$Danceability=dplyr::recode(New_Music_Gen$Danceability, YES="car=YES", NO="car=NO")
+New_Music_Gen$Energy=dplyr::recode(New_Music_Gen$Energy, YES="save_act=YES", NO="save_act=NO")
+New_Music_Gen$Instrumentalness=dplyr::recode(New_Music_Gen$Instrumentalness, YES="current_act=YES", NO="current_act=NO")
+New_Music_Gen$Tempo=dplyr::recode(New_Music_Gen$Tempo, YES="mortgage=YES", NO="mortgage=NO")
+New_Music_Gen$Valence=dplyr::recode(New_Music_Gen$Valence, YES="pep=YES", NO="pep=NO")
+New_Music_Gen$Genre=dplyr::recode(New_Music_Gen$Genre, YES="pep=YES", NO="pep=NO")
+New_Music_Gen$Key=dplyr::recode(New_Music_Gen$Key, YES="pep=YES", NO="pep=NO")
+```
+
+#16) Load transformed data into apriori algorithm
+```{r}
+MyRules = apriori(New_Music_Gen, parameter = list(supp = 0.001, conf = 0.9, maxlen = 4))
+```
+
+#17) Sort and inspect(myRules)
+```{r}
+MyRules.sorted <- sort(MyRules, by="lift")
+inspect(MyRules.sorted)
+```
+
+#############################Aproproi Algorithm END#############################
+
+
+
+
+
+
+
+
+
+
+
+###### K-Means Cluster Analysis (Music Popularity)########
+
+#1) Loading Music Genre Data
+```{r}
+Music_Gen <- read.csv("C:/Users/rod_r/OneDrive/Desktop/Syracuse Classes/Fall 2021/IST 707 Data Analytics/Project/music_genre.csv", encoding='UTF-8')
+```
+
+#2) Rename Columns
+```{r}
+colnames(Music_Gen) <- c("ID", "Artist", "Song", "Popularity", "Acoustics", "Danceability", "Duration_ms","Energy", "Instrumentalness", "Key", "Liveness", "Loudness", "Mode", "Lyrics", "Tempo","Obtained_Date", "Valence", "Genre")
+```
+
+#3) Remove Entries with values we can't work with
+```{r}
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == -1, NA))
+
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == 0, NA))
+
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.factor, ~replace(., . == "empty_field", NA))
+Music_Gen$Tempo <- as.numeric(Music_Gen$Tempo)
+```
+
+#4) Remove Entries with NA Values
+```{r}
+Music_Gen <- na.omit(Music_Gen)
+```
+
+#5) Index the ID numbers
+```{r}
+rownames(Music_Gen)<-Music_Gen$ID
+```
+
+#6) Get Rid of Id, Artist, and non numerical values
+```{r}
+New_Music_Gen <- Music_Gen[,-1:-3]
+New_Music_Gen$Instrumentalness <- NULL
+New_Music_Gen$Key <- NULL
+New_Music_Gen$Genre <- NULL
+New_Music_Gen$Mode <- NULL
+New_Music_Gen$Acoustics <- NULL
+New_Music_Gen$Duration_ms <- NULL
+New_Music_Gen$Loudness <- NULL
+New_Music_Gen$Lyrics <- NULL
+New_Music_Gen$Liveness <- NULL
+New_Music_Gen$Obtained_Date <- NULL
+```
+
+
+#7) WSS Plot create function and run
+```{r}
+wssplot <- function(data, nc=10, seed=1234)
+{
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+  set.seed(seed)
+  wss[i] <- sum(kmeans(data,centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab= "Number of Clusters",
+  ylab = "Within groups Sum of Squares")
+}
+wssplot(New_Music_Gen)
+```
+
+#8) K-means Cluster / Plot / Centers
+```{r}
+KM = kmeans(New_Music_Gen,2)
+autoplot(KM, New_Music_Gen, frame= TRUE)
+KM$centers
+```
+################################## K-Means Cluster     END    ##############################################
+
+
+
+
+
+
+
+
+
+####################### Test And Train [Still Working on This] #########################################
+
+#1) Split Data into Test and Training (Popularity)
+```{r}
+split = sample.split(New_Music_Gen$Popularity, SplitRatio = .80)
+train = subset(New_Music_Gen, split == TRUE)
+test = subset(New_Music_Gen, split == FALSE)
+```
+
+Music_Pop_dt_model <- train(Popularity ~ ., data = train, metric = "Accuracy", method = "rpart")
+Music_Pop_dt_predict <- predict(Music_Pop_dt_model, newdata = test, na.action = na.omit, type = "prob")
+head(Music_Pop_dt_predict, 12)
+
+########################### Test And Trai END ##########################################
+
