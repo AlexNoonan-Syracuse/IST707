@@ -7,7 +7,7 @@ library(ggplot2)
 library(scales)
 library(caret)
 
-df <- read.csv("C://Users//Alex//Desktop//College//Fall 2021//Data Mining//IST707//music_genre.csv")
+df <- read.csv("https://raw.githubusercontent.com/AlexNoonan-Syracuse/IST707/main/music_genre.csv")
 columns <- colnames(df)
 # preprocessing for decision tree
 
@@ -180,5 +180,4 @@ c5 <- ggplot(c4, aes(Actual,Predicted)) + geom_tile(aes(fill=value))
 c5 <- c5 + scale_fill_gradient2() +geom_text(aes(fill=value, label=value))
 
 c5
-# super accurate > 90%
 # super accurate > 90%
