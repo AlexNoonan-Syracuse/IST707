@@ -161,7 +161,7 @@ tree2 <- rpart(popularity~.
                ,control= rpart.control(minsplit=4
                                        ,minbucket = 5, maxdepth=10
                ))
-rpart.plot(tree2,extra= 106)
+rpart.plot(tree2, type=3, trace=-1)
 
 Predictions <- predict(tree2,newdata =  test2,type="class")
 
@@ -173,11 +173,15 @@ confusionMatrix(Predictions2, test2$popularity)
 x2 <-table(test2$popularity,Predictions2)
 
 c4= melt(x2)
+c4$Var1 <- as.factor(c4$Var1)
+c4$Predictions2 <- as.factor(c4$Predictions2)
+
 c4 <- rename(c4, Actual= Var1, Predicted = Predictions2)
 
 
 c5 <- ggplot(c4, aes(Actual,Predicted)) + geom_tile(aes(fill=value))
 c5 <- c5 + scale_fill_gradient2() +geom_text(aes(fill=value, label=value))
 
+c5<- c5 + ggtitle("Predicted Popularity by Percentile")
 c5
 # super accurate > 90%
