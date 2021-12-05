@@ -1,0 +1,166 @@
+---
+title: "Music Popularity K Means Algorithm"
+author: "Rod Rosales"
+date: "12/5/2021"
+output: html_document
+---
+
+#Library
+
+```{r}
+library(cluster)
+library(caret)
+library(factoextra)
+library(plyr)
+library(dplyr)
+library(rgl)
+library(plot3D)
+library(plotly)
+```
+
+
+###### K-Means Cluster Analysis (Music Popularity)########
+
+#1) Loading Music Genre Data
+```{r}
+Music_Gen <- read.csv("C:/Users/rod_r/OneDrive/Desktop/Syracuse Classes/Fall 2021/IST 707 Data Analytics/Project/music_genre.csv")
+```
+
+#2) Rename Columns
+```{r}
+colnames(Music_Gen) <- c("ID", "Artist", "Song", "Popularity", "Acoustics", "Danceability", "Duration_ms","Energy", "Instrumentalness", "Key", "Liveness", "Loudness", "Mode", "Lyrics", "Tempo","Obtained_Date", "Valence", "Genre")
+```
+
+#3) Get Rid of ID, Artist, and unwanted variables
+```{r}
+Music_Gen <- Music_Gen[,-1:-3]
+Music_Gen$Obtained_Date <- NULL
+Music_Gen$Duration_ms <- NULL
+```
+
+#4) Combine Rap and Hip-Hop Into One Music Genre
+```{r}
+Music_Gen$Genre <- gsub("Rap","Hip-Hop",Music_Gen$Genre)
+Music_Gen$Genre <- gsub("Hip-Hop","Rap/Hip-Hop",Music_Gen$Genre)
+table(Music_Gen$Genre)
+```
+
+#5) Remove Entries with values we can't work with and numerate non numerical variables
+```{r}
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == -1, NA))
+
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.numeric, ~replace(., . == 0, NA))
+
+Music_Gen <-
+Music_Gen %>%
+  mutate_if(is.factor, ~replace(., . == "empty_field", NA))
+```
+
+#6) Numerate non-Numeric Values
+```{r}
+Music_Gen$Tempo <- as.numeric(Music_Gen$Tempo)
+Music_Gen <- transform(Music_Gen, Key = as.numeric(factor(Key)))
+Music_Gen <- transform(Music_Gen, Mode = as.numeric(factor(Mode)))
+```
+
+#7) Remove Entries with NA Values
+```{r}
+Music_Gen <- na.omit(Music_Gen)
+```
+
+#8) Get a distribution of the data by Genre
+```{r}
+Genre.Labels = Music_Gen$Genre
+table(Genre.Labels)
+```
+
+#9) Remove Genre
+```{r}
+Music_Gen_Data <- Music_Gen[1:12]
+```
+
+#10) Scale the Data
+```{r}
+Music_Gen_Data_Scale <- scale(Music_Gen_Data)
+```
+
+#11) WSS Plot to determine # of clusters
+```{r}
+wssplot <- function(data, nc=10, seed=1234)
+{
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+  set.seed(seed)
+  wss[i] <- sum(kmeans(data,centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab= "Number of Clusters",
+  ylab = "Within groups Sum of Squares")
+}
+wssplot(Music_Gen_Data_Scale)
+```
+
+#12) Visualize and label rows
+```{r}
+km.out <- kmeans(Music_Gen_Data_Scale, centers = 4, nstart = 100)
+print(km.out)
+```
+
+#13-1) Label Rows and Visualize Cluster Plot
+```{r}
+km.clusters <- km.out$cluster
+rownames(Music_Gen_Data_Scale) <- paste(Music_Gen$Genre, 1:dim(Music_Gen)[1], sep = "_")
+Music_Cluster_Plot <- fviz_cluster(list(data = Music_Gen_Data_Scale, cluster = km.clusters))
+Music_Cluster_Plot
+```
+
+#13-2) Table of Cluster Plot Above
+```{r}
+table(km.clusters,Music_Gen$Genre)
+```
+
+#13-3)  above cluster center (means) table with variables within each cluster
+```{r}
+km.out$centers
+```
+
+#13-4) Individual Variables by Song including cluster assignment
+```{r}
+cluster_assignment <- data.frame(Music_Gen_Data_Scale,km.clusters)
+cluster_assignment
+```
+
+
+
+###Variables Number Code for 3d Plot Below###
+#Popularity : 1
+#Acoustics : 2
+#Danceability : 3
+#Energy : 4
+#Instrumentalness : 5
+#Key : 6
+#Liveness : 7
+#Loudness : 8
+#Mode : 9
+#Lyrics : 10
+#Tempo : 11
+#Valence : 12
+###Variables Number Code for 3d Plot Below###
+
+
+
+#14) 3d Plot for Music Popularity
+```{r}
+plot3d(Music_Gen_Data_Scale[, c(1, 2, 10)], col=rainbow(4)[km.clusters])
+legend3d("topright", legend = paste('Cluster', c('1', '2', '3','4')), pch = 16, col = rainbow(4), cex=1, inset=c(0.02))
+```
+
+
+
+
+
+
+################################## K-Means Cluster     END    ##############################################
+
