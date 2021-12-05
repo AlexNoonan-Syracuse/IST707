@@ -23,7 +23,7 @@ library(plotly)
 
 #1) Loading Music Genre Data
 ```{r}
-Music_Gen <- read.csv("C:/Users/rod_r/OneDrive/Desktop/Syracuse Classes/Fall 2021/IST 707 Data Analytics/Project/music_genre.csv")
+Music_Gen <- read.csv("https://raw.githubusercontent.com/AlexNoonan-Syracuse/IST707/main/music_genre.csv")
 ```
 
 #2) Rename Columns
