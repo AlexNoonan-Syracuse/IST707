@@ -1,0 +1,87 @@
+---
+title: "Random Forest 2"
+author: "Andrew Ku"
+date: "12/1/2021"
+output: html_document
+---
+
+````{r}
+rf_model <- original
+str(rf_model)
+````
+
+# Data Cleaning and preprocessing for random forest 
+````{r}
+library(dplyr)
+library(arules)
+library(caret)
+#extracting columns
+rf_model <- rf_model %>%
+                select(-artist, -track, -key, -mode, -speechiness)
+
+#discritizing popularity 
+rf_model$popularity <- discretize(rf_model$popularity, method = 'frequency', breaks = 2,
+                                  labels = c('notPopular','popular'))
+
+#factorize genre
+rf_model$genre <- as.factor(rf_model$genre)
+
+#Discretizing acousticness
+rf_model$acousticness <- discretize(rf_model$acousticness, method = 'frequency', breaks = 2,
+                                  labels = c('nonAcoustic','acoustic'))
+
+#Discretizing instrumentalness
+rf_model$instrumentalness <- discretize(rf_model$instrumentalness, method = 'frequency', breaks = 2,
+                                  labels = c('nonInstrumental','instrumental'))
+
+#Discretizing liveness
+rf_model$liveness <- discretize(rf_model$liveness, method = 'frequency', breaks = 2,
+                                  labels = c('nonLiveness','live'))
+
+
+#scaling numerical data
+num_var_rf <- sapply(rf_model, is.numeric)
+rf_model[,num_var_rf] <- scale(rf_model[,num_var_rf], center = T, scale = T)
+````
+
+# spliting train & test 
+````{r}
+#80% train dataset and 20% test
+splitpoint <- sample(nrow(rf_model), nrow(rf_model) * 0.8)
+
+#train dataset
+train <- rf_model[splitpoint, ]
+
+#test dataset
+test <- rf_model[-splitpoint, ]
+result <- test[,1]
+test[,1] <- NA
+````
+
+
+# Random Forest 
+````{r}
+library(randomForest)
+#using Caret
+tunegrid <- expand.grid(.mtry = c(sqrt(ncol(rf_model))))
+control <- trainControl(method = 'repeatedcv',
+                        number = 10,
+                        repeats = 3,
+                        search = 'grid')
+
+model_rf <- train(popularity ~., train, method = 'rf',
+                  metric = 'Accuracy',
+                  trControl = control,
+                  tuneGrid = tunegrid)
+
+model_rf
+varimp_rf <- varImp(model_rf)
+plot(varimp_rf)
+````
+#prediction
+````{r}
+pred <- predict(model_rf, test, type = 'raw')
+confusionMatrix(pred, result)
+histogram(pred)
+````
+

@@ -1,0 +1,143 @@
+---
+title: "Data Analysis Music"
+author: "Andrew Ku"
+date: "11/25/2021"
+output: word_document
+---
+
+# Reading Data
+````{r}
+original <- read.csv('music.csv')
+str(original)
+````
+
+# Data Cleaning
+````{r}
+library(dplyr)
+original <- original %>%
+                select(-instance_id, -obtained_date, -duration_ms) %>% #extracting id & date
+                mutate(tempo = as.numeric(tempo)) %>% #tempo chr -> num
+                rename(artist = artist_name,
+                       track = track_name,
+                       genre = music_genre)
+summary(original)
+````
+
+# Duplicated Rows
+````{r}
+original[duplicated(original),] #seems like 5 NAs are from here
+original <- original[!duplicated(original),] #extracting missing and duplicated rows
+summary(original)
+original <- original[!is.na(original$energy),]
+````
+
+# More Duplicated Rows 
+````{r}
+#Hip-Hop and Rap have duplicated Rows
+original$genre[original$genre == 'Hip-Hop'] <-  'HipRap'
+original$genre[original$genre == 'Rap'] <- 'HipRap'
+
+original <- original[!duplicated(original),]
+````
+
+
+# Exploring Numeric Values
+````{r}
+num_var <- sapply(original, is.numeric)
+````
+
+
+# Exploring Missing Values in Tempo and Imputing Missing values 
+````{r}
+library(mice)
+tempData <- mice(original[,num_var], m = 5, maxit = 50, meth = 'pmm', seed = 500)
+imputedTempo <- complete(tempData, 1)
+hist(imputedTempo$tempo)
+hist(original$tempo)
+original[,num_var] <- imputedTempo
+````
+
+#Histogram of numeric attributes 
+````{r}
+#install.packages('Hmisc')
+library(Hmisc)
+hist.data.frame(original[,num_var])
+````
+#Most Popular Tracks
+````{r}
+library(ggplot2)
+library(viridis)
+popularTrack <- original %>%
+                        select(track, popularity, genre) %>%
+                        group_by(track) %>%
+                        arrange(desc(popularity)) %>%
+                        head(21) %>%
+                        ggplot(aes(x = reorder(track, popularity), y=popularity, fill = popularity)) +
+                        geom_bar(stat = 'identity') +
+                        coord_flip() +
+                        theme(axis.text.x = element_text(angle = 90, hjust = 1),
+                              plot.title = element_text(colour = "purple"),
+                              axis.title = element_text(colour = "purple"),
+                              axis.ticks = element_blank(),
+                              text = element_text(colour = 'purple')) +
+                        scale_fill_continuous(low="#ffa600", high="#58508d") +
+                        labs(title = 'Top 20 Music Chart',
+                             x = 'Track',
+                             y = 'Popularity',
+                             fill = 'popularity Scale')
+        
+````
+# Top 50 Artist
+````{r}
+original$artist[original$artist == "Heuss L'enfoirÃ©"] <- "Heuss l'Enfoiré"
+artist <-  original %>%
+                        select(artist, popularity) %>%
+                        group_by(artist) %>%
+                        summarise(popularity = mean(popularity)) %>%
+                        arrange(desc(popularity)) %>%
+                        head(20) %>%
+                        ggplot(aes(x = reorder(artist, popularity), y=popularity, fill = popularity)) +
+                        geom_bar(stat = 'identity') +
+                        coord_flip() +
+                                theme(axis.text.x = element_text(angle = 90, hjust = 1),
+                                        plot.title = element_text(colour = "purple"),
+                                        axis.title = element_text(colour = "purple"),
+                                        axis.ticks = element_blank(),
+                                      text = element_text(colour = 'purple')) +
+                        scale_fill_continuous(low="#ffa600", high="#58508d") +
+                        labs(title = 'Top 20 Artists',
+                                x = 'Artists',
+                                y = 'Popularity',
+                                fill = 'Popularity Scale')
+
+````
+
+
+# Popular genre 
+````{r}
+genre <-  original %>%
+                        select(genre, popularity) %>%
+                        group_by(genre) %>%
+                        summarise(popularity = mean(popularity)) %>%
+                        arrange(desc(popularity)) %>%
+                        head(51) %>%
+                        ggplot(aes(x = reorder(genre, popularity), y=popularity, fill = popularity)) +
+                        geom_bar(stat = 'identity') +
+                        coord_flip() +
+                                theme(axis.text.x = element_text(angle = 90, hjust = 1),
+                                        plot.title = element_text(colour = "purple"),
+                                        axis.title = element_text(colour = "purple"),
+                                        axis.ticks = element_blank(),
+                                      text = element_text(colour = 'purple')) +
+                        scale_fill_continuous(low="#ffa600", high="#58508d") +
+                        labs(title = 'Popularity vs Genre',
+                                x = 'Genre',
+                                y = 'Popularity',
+                                fill = 'Popularity Scale')
+
+````
+
+#Boxplots of numeric attributes 
+````{r}
+
+
